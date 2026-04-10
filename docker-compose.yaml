@@ -1,0 +1,132 @@
+services:
+  service-registry:
+    build:
+      context: C:\Users\kswap\Documents\microservice\studentserviceregistry-microservice
+    container_name: service-registry
+    ports:
+      - 8761:8761
+    networks:
+      - s_network
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:8761/actuator/health
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+  config-server:
+    build:
+      context: C:\Users\kswap\Documents\microservice\studentconfig-microservice
+    container_name: config-server
+    ports:
+      - 8088:8088
+    networks:
+      - s_network
+    volumes:
+      - C:/Users/kswap/Documents/microservice/config:/config
+    depends_on:
+      service-registry:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:8088/actuator/health
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: testdb
+    ports:
+      - 5433:5432
+    networks:
+      - s_network
+    restart: unless-stopped
+    volumes:
+      - postgress_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U postgres
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+  student-microservice:
+    build:
+      context: C:\Users\kswap\Documents\microservice\student-microservice
+    container_name: student-microservice
+    ports:
+      - 8081:8081
+    networks:
+      - s_network
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/testdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8088/
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+  order-microservice:
+    build:
+      context: C:\Users\kswap\Documents\microservice\order-microservice
+    container_name: order-microservice
+    ports:
+      - 8082:8082
+    networks:
+      - s_network
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/testdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8088/
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+  studentgateway-microservice:
+    build:
+      context: C:\Users\kswap\Documents\microservice\studentgateway-microservice
+    container_name: studentgateway-microservice
+    ports:
+      - 9090:9090
+    networks:
+      - s_network
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8088/
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      student-microservice:
+        condition: service_started
+      order-microservice:
+        condition: service_started
+networks:
+  s_network:
+    driver: bridge
+volumes:
+  postgress_db_data:
