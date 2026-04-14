@@ -1,7 +1,7 @@
 services:
   service-registry:
     build:
-      context: C:\Users\kswap\Documents\microservice\studentserviceregistry-microservice
+      context: C:/Users/kswap/Documents/workspace/studentserviceregistry-microservice
     container_name: service-registry
     ports:
       - 8761:8761
@@ -19,14 +19,14 @@ services:
       start_period: 30s
   config-server:
     build:
-      context: C:\Users\kswap\Documents\microservice\studentconfig-microservice
+      context:  C:/Users/kswap/Documents/workspace/studentconfig-microservice
     container_name: config-server
     ports:
       - 8088:8088
     networks:
       - s_network
     volumes:
-      - C:/Users/kswap/Documents/microservice/config:/config
+      - C:/Users/kswap/Documents/workspace/config:/config
     depends_on:
       service-registry:
         condition: service_healthy
@@ -52,7 +52,7 @@ services:
       - s_network
     restart: unless-stopped
     volumes:
-      - postgress_db_data:/var/lib/postgresql/data
+      - postgres_db_data:/var/lib/postgresql/data
     healthcheck:
       test:
         - CMD-SHELL
@@ -63,12 +63,22 @@ services:
       start_period: 20s
   student-microservice:
     build:
-      context: C:\Users\kswap\Documents\microservice\student-microservice
+      context:  C:/Users/kswap/Documents/workspace/student-microservice
     container_name: student-microservice
     ports:
       - 8081:8081
     networks:
       - s_network
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:8081/actuator/health
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/testdb
       SPRING_DATASOURCE_USERNAME: postgres
@@ -85,12 +95,22 @@ services:
         condition: service_healthy
   order-microservice:
     build:
-      context: C:\Users\kswap\Documents\microservice\order-microservice
+      context:  C:/Users/kswap/Documents/workspace/order-microservice
     container_name: order-microservice
     ports:
       - 8082:8082
     networks:
       - s_network
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:8082/actuator/health
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/testdb
       SPRING_DATASOURCE_USERNAME: postgres
@@ -107,7 +127,7 @@ services:
         condition: service_healthy
   studentgateway-microservice:
     build:
-      context: C:\Users\kswap\Documents\microservice\studentgateway-microservice
+      context:  C:/Users/kswap/Documents/workspace/studentgateway-microservice
     container_name: studentgateway-microservice
     ports:
       - 9090:9090
@@ -122,11 +142,11 @@ services:
       config-server:
         condition: service_healthy
       student-microservice:
-        condition: service_started
+        condition: service_healthy
       order-microservice:
-        condition: service_started
+        condition: service_healthy
 networks:
   s_network:
     driver: bridge
 volumes:
-  postgress_db_data:
+  postgres_db_data:
